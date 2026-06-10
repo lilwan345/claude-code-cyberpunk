@@ -1,0 +1,414 @@
+/* ============================================================================
+   CYBERPUNK-NEON :: merged Custom CSS for VS Code (Custom CSS and JS Loader)
+   5 modules integrated: nebula-background + neon-glow + glassmorphism
+                         + neon-accents + crt-atmosphere
+   ----------------------------------------------------------------------------
+   KEY INTEGRATION FIXES
+   - nebula owns the backdrop and lives on  .monaco-workbench::before/::after
+     (inside the workbench, above its opaque bg, below the transparent editor).
+   - crt-atmosphere RELOCATED to  body::before/::after  to avoid the fatal
+     pseudo-element collision (one element only has one ::before / ::after).
+   - Continuous animation count reduced from ~8 to 4 (one signature per module),
+     all compositor-only (transform / background-position / filter / opacity).
+   - Every overlay layer keeps pointer-events:none so clicks pass through.
+   ============================================================================ */
+
+
+/* ====================================================================
+   1) NEBULA BACKGROUND  —  owns the backdrop
+   ==================================================================== */
+
+/* anchor + opaque dark base so the nebula layers have somewhere to sit */
+.monaco-workbench {
+  background-color: #0a0a0f !important;
+  position: relative !important;
+}
+
+/* editor surfaces transparent so the nebula shows through (chrome stays frosted) */
+.monaco-editor,
+.monaco-editor .margin,
+.monaco-editor-background,
+.monaco-editor .minimap,
+.monaco-workbench .part.editor > .content,
+.editor-group-container,
+.split-view-view .editor-container {
+  background: transparent !important;
+}
+
+/* primary nebula layer — fixed, full viewport, behind editor (SIGNATURE MOTION) */
+.monaco-workbench::before {
+  content: "" !important;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
+  background-color: #0a0a0f !important;
+  background-image:
+    radial-gradient(60% 55% at 22% 30%, #ff2e9722 0%, #ff2e9700 60%),
+    radial-gradient(55% 60% at 78% 24%, #00eaff1a 0%, #00eaff00 58%),
+    radial-gradient(70% 65% at 62% 74%, #b46bff1f 0%, #b46bff00 62%),
+    radial-gradient(65% 60% at 30% 82%, #2b8bff14 0%, #2b8bff00 60%) !important;
+  background-repeat: no-repeat !important;
+  background-size: 160% 160% !important;
+  filter: saturate(1.1) !important;
+  will-change: transform !important;
+  transform: translate3d(0, 0, 0) scale(1.04) !important;
+  animation: nebula-drift 52s ease-in-out infinite alternate !important;
+}
+
+/* secondary depth layer — now STATIC (de-animated for perf), dimmed for readability */
+.monaco-workbench::after {
+  content: "" !important;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
+  background-image:
+    conic-gradient(from 210deg at 70% 40%, #b46bff14 0deg, #00eaff10 120deg, #ff2e9712 240deg, #b46bff14 360deg),
+    radial-gradient(45% 45% at 50% 55%, #5cf2ff10 0%, #5cf2ff00 70%) !important;
+  background-repeat: no-repeat !important;
+  background-size: 200% 200% !important;
+  mix-blend-mode: screen !important;
+  opacity: 0.40 !important;                 /* was 0.55 — dialed down */
+  transform: translate3d(0, 0, 0) scale(1.06) !important;
+}
+
+@keyframes nebula-drift {
+  0% {
+    transform: translate3d(-1.5%, -1%, 0) scale(1.04);
+    background-position: 0% 0%, 100% 0%, 50% 100%, 0% 100%;
+  }
+  100% {
+    transform: translate3d(1.5%, 1.2%, 0) scale(1.08);
+    background-position: 12% 18%, 88% 14%, 60% 84%, 14% 86%;
+  }
+}
+
+
+/* ====================================================================
+   2) NEON GLOW  —  per-token bloom, animated caret, lit current line
+   ==================================================================== */
+
+/* per-token glow in the token's own color — radii kept moderate for sharp text */
+.monaco-editor .view-line span {
+  text-shadow:
+    0 0 2px rgba(207, 234, 255, 0.18),   /* faint #cfeaff base haze */
+    0 0 6px currentColor,                 /* token bloom (was 8px)   */
+    0 0 1px currentColor !important;      /* tight inner core        */
+}
+
+/* glowing animated caret — single element, filter-only pulse (SIGNATURE MOTION) */
+.monaco-editor .cursor {
+  background-color: #ff2e97 !important;
+  border-color: #ff2e97 !important;
+  box-shadow:
+    0 0 8px #ff2e97,
+    0 0 16px #ff2e97aa !important;
+  will-change: filter !important;
+  transform: translateZ(0) !important;
+  animation: neon-caret-pulse 1.6s ease-in-out infinite !important;
+}
+
+@keyframes neon-caret-pulse {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(1.55); }
+}
+
+/* current-line underglow — low-luminance, static, contrast preserved */
+.monaco-editor .view-overlays .current-line {
+  background-color: #00eaff0a !important;
+  border: none !important;
+  box-shadow:
+    inset 0 0 14px #00eaff14,
+    inset 0 0 1px #5cf2ff2e !important;
+}
+
+/* active line-number bloom — faint cyan halo on the gutter */
+.monaco-editor .margin-view-overlays .active-line-number,
+.monaco-editor .line-numbers.active-line-number {
+  color: #5cf2ff !important;
+  text-shadow:
+    0 0 6px #00eaff,
+    0 0 2px #00eaffcc !important;
+}
+
+
+/* ====================================================================
+   3) GLASSMORPHISM  —  frosted chrome over the nebula
+   (translucent dark bg + backdrop blur; editor text area never touched)
+   ==================================================================== */
+
+/* --- Side bar --- */
+.monaco-workbench .part.sidebar {
+  background: #0e0e18aa !important;
+  -webkit-backdrop-filter: blur(14px) saturate(140%) !important;
+  backdrop-filter: blur(14px) saturate(140%) !important;
+  border-right: 1px solid rgba(0,234,255,0.18) !important;
+  box-shadow:
+    0 0 24px rgba(10,10,15,0.45),
+    inset 0 1px 0 rgba(92,242,255,0.07),
+    inset -1px 0 0 rgba(255,46,151,0.05) !important;
+}
+
+/* --- Activity bar --- */
+.monaco-workbench .part.activitybar {
+  background: #0a0a0faa !important;
+  -webkit-backdrop-filter: blur(14px) saturate(140%) !important;
+  backdrop-filter: blur(14px) saturate(140%) !important;
+  border-right: 1px solid rgba(255,46,151,0.16) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(92,242,255,0.06),
+    inset -1px 0 0 rgba(0,234,255,0.06) !important;
+}
+
+/* --- Panel (terminal / problems / output) --- */
+.monaco-workbench .part.panel {
+  background: #0e0e18aa !important;
+  -webkit-backdrop-filter: blur(14px) saturate(140%) !important;
+  backdrop-filter: blur(14px) saturate(140%) !important;
+  border-top: 1px solid rgba(0,234,255,0.18) !important;
+  box-shadow:
+    0 -8px 28px rgba(10,10,15,0.45),
+    inset 0 1px 0 rgba(92,242,255,0.07) !important;
+}
+
+/* --- Floating editor widgets (suggest / hover / find / param hints) --- */
+.monaco-editor .suggest-widget,
+.monaco-editor .monaco-hover,
+.monaco-editor .find-widget,
+.monaco-editor .parameter-hints-widget,
+.parameter-hints-widget {
+  background: #0e0e18cc !important;
+  -webkit-backdrop-filter: blur(14px) saturate(140%) !important;
+  backdrop-filter: blur(14px) saturate(140%) !important;
+  border: 1px solid rgba(0,234,255,0.28) !important;
+  border-radius: 10px !important;
+  box-shadow:
+    0 12px 36px rgba(10,10,15,0.60),
+    0 0 18px rgba(255,46,151,0.10),
+    inset 0 1px 0 rgba(92,242,255,0.10) !important;
+}
+
+/* let the blur read through non-selected rows (selected keeps theme highlight) */
+.monaco-editor .suggest-widget .monaco-list .monaco-list-row:not(.focused),
+.monaco-editor .find-widget .monaco-inputbox {
+  background: transparent !important;
+}
+
+/* --- Command palette / Quick input — THE hero element --- */
+.quick-input-widget {
+  position: relative !important;
+  background: #0e0e18dd !important;
+  -webkit-backdrop-filter: blur(20px) saturate(140%) !important;
+  backdrop-filter: blur(20px) saturate(140%) !important;
+  border: 1px solid rgba(255,46,151,0.45) !important;
+  border-radius: 14px !important;
+  box-shadow:
+    0 24px 64px rgba(10,10,15,0.70),
+    0 0 36px rgba(255,46,151,0.22),
+    0 0 64px rgba(0,234,255,0.10),
+    inset 0 1px 0 rgba(92,242,255,0.14),
+    inset 0 0 24px rgba(255,46,151,0.05) !important;
+}
+
+/* animated neon halo — TRANSIENT (only while palette is open), GPU-cheap */
+.quick-input-widget::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: -2px !important;
+  z-index: -1 !important;
+  border-radius: 16px !important;
+  background: linear-gradient(120deg,
+    #ff2e9755, #b46bff44, #00eaff55, #ff2e9755) !important;
+  background-size: 300% 300% !important;
+  filter: blur(8px) !important;
+  opacity: 0.50 !important;                 /* was 0.55 */
+  pointer-events: none !important;
+  will-change: background-position !important;
+  animation: glassHaloDrift 24s linear infinite !important;
+}
+
+@keyframes glassHaloDrift {
+  0%   { background-position:   0% 50%; }
+  100% { background-position: 300% 50%; }
+}
+
+/* keep palette rows translucent so the frost stays visible */
+.quick-input-widget .quick-input-list .monaco-list-row:not(.focused) {
+  background: transparent !important;
+}
+
+/* --- Notification toasts --- */
+.monaco-workbench .notifications-toasts .notification-toast {
+  background: #0e0e18dd !important;
+  -webkit-backdrop-filter: blur(14px) saturate(140%) !important;
+  backdrop-filter: blur(14px) saturate(140%) !important;
+  border: 1px solid rgba(0,234,255,0.30) !important;
+  border-radius: 10px !important;
+  box-shadow:
+    0 14px 40px rgba(10,10,15,0.60),
+    0 0 18px rgba(255,46,151,0.10),
+    inset 0 1px 0 rgba(92,242,255,0.10) !important;
+}
+
+
+/* ====================================================================
+   4) NEON ACCENTS  —  flowing status bar + lit tabs / activity / badges
+   ==================================================================== */
+
+@keyframes na-flow {
+  from { background-position: 0% 50%; }
+  to   { background-position: 300% 50%; }
+}
+@keyframes na-pulse {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(1.32); }
+}
+
+/* --- Status bar: flowing rainbow-neon 2px top bar (SIGNATURE MOTION) --- */
+.monaco-workbench .part.statusbar {
+  position: relative !important;
+}
+.monaco-workbench .part.statusbar::before {
+  content: "" !important;
+  position: absolute !important;
+  top: 0 !important; left: 0 !important; right: 0 !important;
+  height: 2px !important;
+  z-index: 20 !important;
+  pointer-events: none !important;
+  background: linear-gradient(90deg,
+      #ff2e97, #b46bff, #00eaff, #34ffa6, #ffd54a, #ff2e97) !important;
+  background-size: 300% 100% !important;
+  background-repeat: repeat !important;
+  will-change: background-position !important;
+  animation: na-flow 7s linear infinite !important;
+}
+
+/* --- Activity bar active/checked item: magenta edge + STATIC glow --- */
+.monaco-workbench .part.activitybar .action-item.active,
+.monaco-workbench .part.activitybar .action-item.checked {
+  position: relative !important;
+}
+.monaco-workbench .part.activitybar .action-item.active .action-label,
+.monaco-workbench .part.activitybar .action-item.checked .action-label {
+  border-left: 2px solid #ff2e97 !important;
+  color: #cfeaff !important;
+  box-shadow: inset 0 0 14px #ff2e9722, -1px 0 10px #ff2e9755 !important;
+}
+/* hover lift for inactive items — transient (hover only) */
+.monaco-workbench .part.activitybar .action-item:hover .action-label {
+  filter: brightness(1.18) !important;
+  transition: filter .2s ease !important;
+}
+
+/* --- Active tab: STATIC cyan->magenta neon top border + underglow --- */
+.monaco-workbench .tab.active {
+  position: relative !important;
+}
+.monaco-workbench .tab.active::before {
+  content: "" !important;
+  position: absolute !important;
+  top: 0 !important; left: 0 !important; right: 0 !important;
+  height: 2px !important;
+  z-index: 12 !important;
+  pointer-events: none !important;
+  background: linear-gradient(90deg, #00eaff, #ff2e97, #00eaff) !important;
+  box-shadow: 0 2px 10px #00eaff33, 0 1px 4px #ff2e9722 !important;
+}
+
+/* --- Badges & focus --- */
+.monaco-workbench .badge {
+  border: 1px solid #ff2e9755 !important;
+  box-shadow: 0 0 8px #ff2e9744 !important;     /* static glow */
+}
+.monaco-workbench .badge:hover {                /* transient pulse on hover */
+  will-change: filter !important;
+  animation: na-pulse 2.4s ease-in-out infinite !important;
+}
+/* activity-bar badge: STATIC cyan glow (was a semi-permanent pulse) */
+.monaco-workbench .activitybar .badge,
+.monaco-workbench .activity-bar .badge {
+  border: 1px solid #00eaff66 !important;
+  box-shadow: 0 0 8px #00eaff55 !important;
+}
+
+/* focus ring — SCOPED to interactive chrome only (not the editor or every
+   focused list/tree row), dialed down for readability */
+.monaco-workbench .monaco-inputbox.synthetic-focus,
+.monaco-workbench .monaco-inputbox:focus-within,
+.monaco-workbench .monaco-button:focus,
+.monaco-workbench .monaco-action-bar .action-item:focus-visible {
+  outline-color: #00eaff !important;
+  box-shadow: 0 0 0 1px #00eaff55, 0 0 8px #00eaff33 !important;
+}
+
+
+/* ====================================================================
+   5) CRT ATMOSPHERE  —  vignette + scanlines/flicker (TOP overlay)
+   RELOCATED to body::before/::after to avoid colliding with the nebula,
+   which owns .monaco-workbench::before/::after. Fixed, pointer-events:none,
+   so it sits above all UI without ever blocking clicks.
+   ==================================================================== */
+
+/* vignette: soft dark corners + a whisper of neon at the extremes */
+body::before {
+  content: "" !important;
+  position: fixed !important;
+  inset: 0 !important;
+  pointer-events: none !important;
+  z-index: 2147483645 !important;
+  background:
+    radial-gradient(120% 120% at 50% 50%,
+      #0a0a0f00 52%, #0a0a0f1f 78%, #0a0a0f59 100%),
+    radial-gradient(80% 80% at 0% 0%,   #00eaff0a 0%, #0a0a0f00 38%),
+    radial-gradient(80% 80% at 100% 100%, #ff2e970a 0%, #0a0a0f00 38%) !important;
+}
+
+/* scanlines + flicker (SIGNATURE MOTION, opacity-only) */
+body::after {
+  content: "" !important;
+  position: fixed !important;
+  inset: 0 !important;
+  pointer-events: none !important;
+  z-index: 2147483646 !important;
+  opacity: 0.40 !important;                  /* was 0.5 — dialed down */
+  background:
+    repeating-linear-gradient(
+      0deg,
+      #0a0a0f00 0px,
+      #0a0a0f00 2px,
+      #0a0a0f0a 2px,
+      #0a0a0f0a 3px) !important;
+  background-size: 100% 3px !important;
+  will-change: opacity !important;
+  animation: crt-flicker 7s ease-in-out infinite !important;
+}
+
+@keyframes crt-flicker {
+  0%   { opacity: 0.40; }
+  18%  { opacity: 0.34; }
+  37%  { opacity: 0.40; }
+  55%  { opacity: 0.30; }
+  72%  { opacity: 0.38; }
+  88%  { opacity: 0.32; }
+  100% { opacity: 0.40; }
+}
+
+
+/* ====================================================================
+   ACCESSIBILITY  —  single consolidated reduced-motion block
+   Halts all 4 continuous animations + the transient halo/hover pulses.
+   ==================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .monaco-workbench::before,
+  .monaco-editor .cursor,
+  .monaco-workbench .part.statusbar::before,
+  .quick-input-widget::before,
+  .monaco-workbench .badge:hover {
+    animation: none !important;
+  }
+  body::after {
+    animation: none !important;
+    opacity: 0.34 !important;
+  }
+}

@@ -1,0 +1,10 @@
+# OS junk
+.DS_Store
+Thumbs.db
+
+# editor
+.vscode/
+*.swp
+
+# backups created by the installer (kept out of the repo)
+*.bak-*

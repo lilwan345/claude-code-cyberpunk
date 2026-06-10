@@ -1,0 +1,194 @@
+/* ============================================================================
+   Cyberpunk Neon — transparency layer
+   Makes the workbench / editor / terminal backgrounds see-through so the
+   injected <canvas id="cyberpunk-bg"> animation (z-index:0) shows behind the
+   code and terminal text. Pairs with cyberpunk-bg.js.
+   ============================================================================ */
+
+/* kill the old STATIC css nebula so the animated canvas owns the backdrop */
+.monaco-workbench::before,
+.monaco-workbench::after { display: none !important; }
+
+/* workbench transparent so the body-level canvas shows through */
+.monaco-workbench { background: transparent !important; }
+
+/* --- editor surfaces transparent --- */
+.monaco-editor,
+.monaco-editor .margin,
+.monaco-editor .margin-view-overlays,
+.monaco-editor-background,
+.monaco-editor .minimap,
+.monaco-workbench .part.editor > .content,
+.editor-group-container,
+.editor-group-container > .editor-container,
+.split-view-view .editor-container,
+.monaco-workbench .part.editor > .content .editor-group-container > .editor-container {
+  background: transparent !important;
+}
+
+/* empty editor / welcome / "no folder" backdrops */
+.monaco-workbench .part.editor > .content .editor-group-container > .editor-container > .monaco-editor .overflow-guard {
+  background: transparent !important;
+}
+
+/* --- integrated terminal transparent (text floats over the animation) --- */
+.monaco-workbench .part.panel .terminal-outer-container,
+.terminal-wrapper,
+.terminal,
+.xterm,
+.xterm-viewport,
+.xterm-screen {
+  background-color: transparent !important;
+  background: transparent !important;
+}
+.xterm .xterm-viewport { background-color: transparent !important; }
+
+/* panel chrome: lightly frosted so terminal text stays legible over motion */
+.monaco-workbench .part.panel {
+  background: rgba(8, 8, 18, 0.26) !important;
+  -webkit-backdrop-filter: blur(6px) saturate(130%) !important;
+  backdrop-filter: blur(6px) saturate(130%) !important;
+  border-top: 1px solid rgba(0, 234, 255, 0.22) !important;
+}
+
+/* editor tab strip + breadcrumbs: transparent so the canvas reads behind them */
+.monaco-workbench .part.editor > .content .editor-group-container > .title,
+.monaco-workbench .part.editor .editor-group-container > .title .tabs-container {
+  background: transparent !important;
+}
+.monaco-workbench .tab:not(.active) {
+  background: transparent !important;
+}
+
+/* ============================================================================
+   CRISP TEXT — no blur on glyphs. (Text-shadow glow on small terminal/editor
+   text just makes it fuzzy; user disliked it.) Keep the cyberpunk cool on
+   NON-text elements only: a neon cursor + selection. Glyphs stay razor-sharp;
+   the "wow" comes from the animated backdrop and the neon color palette.
+   ============================================================================ */
+
+/* kill ALL text-shadow on terminal + editor glyphs (overrides glow.css too) */
+.terminal .xterm-rows,
+.monaco-workbench .part.panel .terminal .xterm-rows,
+.integrated-terminal .xterm-rows,
+.terminal .xterm-rows .xterm-bold,
+.terminal .xterm-rows b,
+.terminal .xterm-rows .xterm-dim,
+.monaco-editor .view-line span {
+  text-shadow: none !important;
+}
+
+/* terminal block cursor — magenta neon bloom (not text, so it stays crisp) */
+.terminal .xterm-cursor-block,
+.xterm.focus .xterm-cursor.xterm-cursor-block {
+  box-shadow: 0 0 6px #ff2e97, 0 0 12px rgba(255, 46, 151, 0.6) !important;
+}
+
+/* selection glows cyan */
+.terminal .xterm-selection div {
+  box-shadow: 0 0 8px rgba(0, 234, 255, 0.35) !important;
+}
+
+/* ============================================================================
+   CYBERPUNK CHROME — borders / frames / scrollbars that echo the backdrop.
+   Sharp neon edges, an animated flowing frame around the terminal, angular
+   tabs, glowing scrollbars + resize handles. All non-text, so nothing blurs.
+   ============================================================================ */
+
+@keyframes cp-flow {
+  0%   { background-position:   0% 50%; }
+  100% { background-position: 300% 50%; }
+}
+/* slow breathing halo around the terminal (focus pull, doesn't touch text) */
+@keyframes cp-frame-breathe {
+  0%, 100% { box-shadow: 0 0 14px rgba(255, 46, 151, 0.12),
+                         inset 0 0 12px rgba(0, 234, 255, 0.05); }
+  50%      { box-shadow: 0 0 30px rgba(255, 46, 151, 0.28),
+                         inset 0 0 22px rgba(0, 234, 255, 0.12); }
+}
+
+/* --- Animated flowing neon FRAME around the terminal panel (where Claude lives) --- */
+.monaco-workbench .part.panel {
+  position: relative !important;
+  animation: cp-frame-breathe 4.5s ease-in-out infinite !important;
+}
+.monaco-workbench .part.panel::after {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  padding: 2.5px !important;                 /* = border thickness (was 1.4) */
+  border-radius: 8px !important;
+  background: linear-gradient(120deg,
+      #ff2e97, #ff5cb0, #b46bff, #00eaff, #34ffa6, #00eaff, #ff2e97) !important;
+  background-size: 300% 300% !important;
+  -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0) !important;
+  -webkit-mask-composite: xor !important;
+          mask-composite: exclude !important;
+  pointer-events: none !important;
+  opacity: 1 !important;                      /* was 0.85 */
+  z-index: 30 !important;
+  filter: saturate(1.25) brightness(1.15) !important;
+  animation: cp-flow 8s linear infinite !important;
+}
+
+/* --- Editor groups: crisp static neon hairline so panes read as "circuits" --- */
+.monaco-workbench .editor-group-container {
+  box-shadow: inset 0 0 0 1px rgba(0, 234, 255, 0.10) !important;
+}
+.monaco-workbench .editor-group-container.active {
+  box-shadow: inset 0 0 0 1px rgba(255, 46, 151, 0.30),
+              0 0 18px rgba(255, 46, 151, 0.06) !important;
+}
+
+/* --- Angular cyberpunk TABS: cut top-left corner + neon active edge --- */
+.monaco-workbench .tabs-container .tab {
+  clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px) !important;
+}
+.monaco-workbench .tab.active {
+  background: rgba(255, 46, 151, 0.06) !important;
+}
+
+/* --- Neon SCROLLBARS --- */
+.monaco-scrollable-element > .scrollbar > .slider {
+  background: rgba(255, 46, 151, 0.32) !important;
+  border-radius: 6px !important;
+  box-shadow: 0 0 6px rgba(255, 46, 151, 0.35) !important;
+}
+.monaco-scrollable-element > .scrollbar > .slider:hover {
+  background: rgba(0, 234, 255, 0.50) !important;
+  box-shadow: 0 0 10px rgba(0, 234, 255, 0.45) !important;
+}
+.monaco-scrollable-element > .scrollbar > .slider.active {
+  background: rgba(0, 234, 255, 0.65) !important;
+}
+
+/* --- Resize handles (sash) glow when hovered/active --- */
+.monaco-sash.hover, .monaco-sash.active {
+  background: linear-gradient(180deg, #00eaff, #ff2e97) !important;
+  box-shadow: 0 0 8px rgba(0, 234, 255, 0.6) !important;
+}
+
+/* --- Sidebar / Activity bar: sharpen the neon edge + faint glow --- */
+.monaco-workbench .part.sidebar {
+  border-right: 1px solid rgba(0, 234, 255, 0.30) !important;
+  box-shadow: 1px 0 14px rgba(0, 234, 255, 0.05) !important;
+}
+.monaco-workbench .part.activitybar {
+  border-right: 1px solid rgba(255, 46, 151, 0.24) !important;
+}
+
+/* --- Title bar / menu bar: thin neon underline tying the top to the frame --- */
+.monaco-workbench .part.titlebar {
+  box-shadow: inset 0 -1px 0 rgba(180, 107, 255, 0.30) !important;
+}
+
+/* --- Buttons (dialogs, Claude permission prompts in editor widgets) --- */
+.monaco-workbench .monaco-button {
+  border: 1px solid rgba(0, 234, 255, 0.45) !important;
+  box-shadow: 0 0 10px rgba(0, 234, 255, 0.18) !important;
+}
+.monaco-workbench .monaco-button:hover {
+  box-shadow: 0 0 16px rgba(0, 234, 255, 0.35) !important;
+}

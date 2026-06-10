@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Cyberpunk Neon · Live Wallpaper</title>
+<style>
+  :root {
+    --void:   #05060d;
+    --magenta:#ff2e97;
+    --cyan:   #00eaff;
+    --purple: #b46bff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--void); }
+  #scene { display: block; width: 100vw; height: 100vh; }
+
+  /* CRT scanline + vignette overlay — pure CSS, sits above the canvas */
+  .overlay {
+    position: fixed; inset: 0; pointer-events: none;
+  }
+  .scanlines {
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(0,0,0,0)   0px,
+      rgba(0,0,0,0)   2px,
+      rgba(0,0,0,.16) 3px,
+      rgba(0,0,0,0)   4px);
+    mix-blend-mode: multiply;
+    opacity: .5;
+    animation: flicker 7s ease-in-out infinite;
+  }
+  .vignette {
+    background:
+      radial-gradient(120% 110% at 50% 42%,
+        rgba(5,6,13,0) 48%, rgba(5,6,13,.55) 88%, rgba(5,6,13,.92) 100%);
+  }
+  .grain {
+    opacity: .05; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  @keyframes flicker {
+    0%,100% { opacity:.50 } 18%{opacity:.42} 37%{opacity:.50} 55%{opacity:.36} 72%{opacity:.46} 88%{opacity:.40}
+  }
+  @media (prefers-reduced-motion: reduce) { .scanlines { animation: none; } }
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+<div class="overlay vignette"></div>
+<div class="overlay scanlines"></div>
+<div class="overlay grain"></div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   CONFIG  —  tune these; everything reads from here
+   ============================================================ */
+const CONFIG = {
+  speed:      1.0,    // global motion multiplier
+  gridSpeed:  0.55,   // floor scroll speed
+  waveCount:  4,      // flowing neon ribbons in the sky
+  starCount:  140,
+  city:       true,   // skyline silhouette
+  sun:        true,   // synthwave sun
+  horizon:    0.66,   // horizon line as fraction of height
+  colors: {
+    void:    "#05060d",
+    deep:    "#0c0a22",   // sky color near horizon
+    magenta: "#ff2e97",
+    pink:    "#ff5cb0",
+    cyan:    "#00eaff",
+    ice:     "#7df9ff",
+    purple:  "#b46bff",
+    blue:    "#2b8bff",
+    amber:   "#ffd54a",
+  },
+};
+
+/* ============================================================
+   Boilerplate: canvas, retina, resize, seeded RNG
+   ============================================================ */
+const canvas = document.getElementById("scene");
+const ctx = canvas.getContext("2d");
+let W = 0, H = 0, DPR = 1, HORIZON = 0, CX = 0;
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = Math.floor(W * DPR);
+  canvas.height = Math.floor(H * DPR);
+  canvas.style.width = W + "px";
+  canvas.style.height = H + "px";
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  HORIZON = H * CONFIG.horizon;
+  CX = W / 2;
+  buildCity();
+  buildStars();
+}
+window.addEventListener("resize", resize);
+
+// deterministic RNG so stars/city don't reshuffle every frame
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* small color helper: hex -> rgba string */
+function rgba(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+}
+
+/* ============================================================
+   Stars
+   ============================================================ */
+let stars = [];
+function buildStars() {
+  const rng = mulberry32(99);
+  stars = [];
+  for (let i = 0; i < CONFIG.starCount; i++) {
+    stars.push({
+      x: rng() * W,
+      y: rng() * HORIZON * 0.98,
+      r: rng() * 1.3 + 0.2,
+      tw: rng() * Math.PI * 2,           // twinkle phase
+      sp: 0.4 + rng() * 0.8,             // twinkle speed
+      c: rng() < 0.5 ? CONFIG.colors.ice : (rng() < 0.5 ? CONFIG.colors.pink : "#ffffff"),
+    });
+  }
+}
+function drawStars(t) {
+  ctx.globalCompositeOperation = "lighter";
+  for (const s of stars) {
+    const a = 0.35 + 0.45 * (0.5 + 0.5 * Math.sin(t * s.sp + s.tw));
+    ctx.beginPath();
+    ctx.fillStyle = rgba(s.c, a);
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalCompositeOperation = "source-over";
+}
+
+/* ============================================================
+   City skyline silhouette (sits on the horizon, rises into sky)
+   ============================================================ */
+let city = [];
+function buildCity() {
+  if (!CONFIG.city) { city = []; return; }
+  const rng = mulberry32(7);
+  city = [];
+  let x = -20;
+  const maxH = HORIZON * 0.42;
+  while (x < W + 20) {
+    const w = 22 + rng() * 60;
+    const h = (0.25 + rng() * 0.75) * maxH;
+    const windows = [];
+    const cols = Math.max(1, Math.floor(w / 12));
+    const rows = Math.max(1, Math.floor(h / 16));
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++)
+        if (rng() < 0.28)
+          windows.push({
+            x: x + 5 + c * (w - 8) / cols,
+            y: HORIZON - h + 6 + r * (h - 8) / rows,
+            c: rng() < 0.6 ? CONFIG.colors.cyan : (rng() < 0.5 ? CONFIG.colors.magenta : CONFIG.colors.amber),
+            ph: rng() * Math.PI * 2,
+          });
+    city.push({ x, w, h, windows, edge: rng() < 0.5 ? CONFIG.colors.cyan : CONFIG.colors.magenta });
+    x += w + rng() * 10;
+  }
+}
+function drawCity(t) {
+  for (const b of city) {
+    // body
+    ctx.fillStyle = "#070611";
+    ctx.fillRect(b.x, HORIZON - b.h, b.w, b.h);
+    // neon top edge
+    ctx.strokeStyle = rgba(b.edge, 0.75);
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = b.edge; ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.moveTo(b.x, HORIZON - b.h);
+    ctx.lineTo(b.x + b.w, HORIZON - b.h);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    // windows
+    ctx.globalCompositeOperation = "lighter";
+    for (const w of b.windows) {
+      const a = 0.5 + 0.5 * Math.sin(t * 1.5 + w.ph);
+      ctx.fillStyle = rgba(w.c, 0.25 + 0.5 * a);
+      ctx.fillRect(w.x, w.y, 2.2, 3.2);
+    }
+    ctx.globalCompositeOperation = "source-over";
+  }
+}
+
+/* ============================================================
+   Synthwave sun  (glowing disc with horizontal scan gaps)
+   ============================================================ */
+function drawSun(t) {
+  if (!CONFIG.sun) return;
+  const R = Math.min(W, H) * 0.16;
+  const sx = CX, sy = HORIZON - R * 0.35;
+  // outer glow
+  const g = ctx.createRadialGradient(sx, sy, R * 0.2, sx, sy, R * 2.4);
+  g.addColorStop(0, rgba(CONFIG.colors.amber, 0.30));
+  g.addColorStop(0.4, rgba(CONFIG.colors.magenta, 0.18));
+  g.addColorStop(1, rgba(CONFIG.colors.magenta, 0));
+  ctx.globalCompositeOperation = "lighter";
+  ctx.fillStyle = g;
+  ctx.fillRect(sx - R * 2.4, sy - R * 2.4, R * 4.8, R * 4.8);
+  ctx.globalCompositeOperation = "source-over";
+
+  // disc with vertical gradient
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(sx, sy, R, 0, Math.PI * 2);
+  ctx.clip();
+  const dg = ctx.createLinearGradient(0, sy - R, 0, sy + R);
+  dg.addColorStop(0, "#ffe28a");
+  dg.addColorStop(0.45, CONFIG.colors.amber);
+  dg.addColorStop(0.7, CONFIG.colors.magenta);
+  dg.addColorStop(1, CONFIG.colors.purple);
+  ctx.fillStyle = dg;
+  ctx.fillRect(sx - R, sy - R, R * 2, R * 2);
+  // scan gaps (bottom half)
+  ctx.fillStyle = CONFIG.colors.void;
+  for (let i = 0; i < 9; i++) {
+    const gy = sy + (i / 9) * R * 1.05;
+    const gh = 2 + i * 0.7;
+    ctx.fillRect(sx - R, gy, R * 2, gh);
+  }
+  ctx.restore();
+}
+
+/* ============================================================
+   Perspective grid floor (scrolls toward viewer)
+   ============================================================ */
+let gridOffset = 0;
+function drawGrid(t, dt) {
+  gridOffset += dt * CONFIG.gridSpeed * CONFIG.speed;
+  const bottom = H;
+  const span = bottom - HORIZON;
+  ctx.globalCompositeOperation = "lighter";
+
+  // horizontal lines — emerge at horizon, accelerate down
+  const N = 22;
+  for (let i = 0; i < N; i++) {
+    let frac = ((i + (gridOffset % 1)) / N);
+    const y = HORIZON + span * frac * frac;
+    const a = (1 - frac) * 0.5;
+    ctx.strokeStyle = rgba(CONFIG.colors.cyan, a);
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+  // vertical lines — fan out from a vanishing point on the horizon
+  const M = 16, gap = (W * 1.6) / (M * 2);
+  for (let k = -M; k <= M; k++) {
+    const bx = CX + k * gap;
+    ctx.strokeStyle = rgba(CONFIG.colors.magenta, 0.32);
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(CX, HORIZON); ctx.lineTo(bx, bottom); ctx.stroke();
+  }
+  // glowing horizon line
+  ctx.strokeStyle = rgba(CONFIG.colors.ice, 0.9);
+  ctx.lineWidth = 2;
+  ctx.shadowColor = CONFIG.colors.cyan; ctx.shadowBlur = 18;
+  ctx.beginPath(); ctx.moveTo(0, HORIZON); ctx.lineTo(W, HORIZON); ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.globalCompositeOperation = "source-over";
+}
+
+/* ============================================================
+   Flowing neon wave ribbons (the signature motion, in the sky)
+   ============================================================ */
+const WAVES = [];
+function buildWaves() {
+  WAVES.length = 0;
+  const pal = [CONFIG.colors.magenta, CONFIG.colors.cyan, CONFIG.colors.purple, CONFIG.colors.pink, CONFIG.colors.blue];
+  for (let i = 0; i < CONFIG.waveCount; i++) {
+    WAVES.push({
+      color: pal[i % pal.length],
+      baseY: 0.18 + i * 0.085,    // fraction of HORIZON
+      amp:   18 + i * 10,
+      freq:  0.6 + i * 0.18,
+      speed: 0.25 + i * 0.12,
+      phase: i * 1.3,
+      thick: 2.2,
+    });
+  }
+}
+function drawWaves(t) {
+  ctx.globalCompositeOperation = "lighter";
+  for (const w of WAVES) {
+    const yBase = HORIZON * w.baseY + HORIZON * 0.05;
+    // three passes: wide soft glow -> mid -> bright core
+    const passes = [
+      { lw: w.thick * 6, a: 0.07 },
+      { lw: w.thick * 2.4, a: 0.16 },
+      { lw: w.thick, a: 0.95 },
+    ];
+    for (const p of passes) {
+      ctx.beginPath();
+      ctx.lineWidth = p.lw;
+      ctx.strokeStyle = rgba(w.color, p.a);
+      ctx.lineJoin = "round";
+      for (let x = -10; x <= W + 10; x += 8) {
+        const u = x / W;
+        const y = yBase
+          + Math.sin(u * Math.PI * 2 * w.freq + t * w.speed + w.phase) * w.amp
+          + Math.sin(u * Math.PI * 2 * w.freq * 2.3 + t * w.speed * 1.4) * w.amp * 0.32;
+        if (x < 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+  }
+  ctx.globalCompositeOperation = "source-over";
+}
+
+/* ============================================================
+   Nebula (drifting radial blobs near/above the horizon)
+   ============================================================ */
+const NEBULA = [
+  { x: 0.22, y: 0.30, r: 0.55, c: "magenta", a: 0.16, dx: 0.5, dy: 0.3 },
+  { x: 0.78, y: 0.24, r: 0.50, c: "cyan",    a: 0.13, dx: -0.4, dy: 0.25 },
+  { x: 0.60, y: 0.55, r: 0.65, c: "purple",  a: 0.16, dx: 0.3, dy: -0.2 },
+  { x: 0.34, y: 0.62, r: 0.45, c: "blue",    a: 0.10, dx: -0.35, dy: -0.3 },
+];
+function drawNebula(t) {
+  ctx.globalCompositeOperation = "lighter";
+  for (const b of NEBULA) {
+    const cx = (b.x + Math.sin(t * 0.07 * b.dx) * 0.04) * W;
+    const cy = (b.y + Math.cos(t * 0.06 * b.dy) * 0.04) * HORIZON * 1.2;
+    const rr = b.r * Math.min(W, H) * (0.9 + 0.1 * Math.sin(t * 0.2 + b.x));
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rr);
+    g.addColorStop(0, rgba(CONFIG.colors[b.c], b.a));
+    g.addColorStop(1, rgba(CONFIG.colors[b.c], 0));
+    ctx.fillStyle = g;
+    ctx.fillRect(cx - rr, cy - rr, rr * 2, rr * 2);
+  }
+  ctx.globalCompositeOperation = "source-over";
+}
+
+/* ============================================================
+   Background sky gradient
+   ============================================================ */
+function drawSky() {
+  const g = ctx.createLinearGradient(0, 0, 0, HORIZON);
+  g.addColorStop(0, CONFIG.colors.void);
+  g.addColorStop(0.7, "#08081a");
+  g.addColorStop(1, CONFIG.colors.deep);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, HORIZON);
+  // floor
+  const fg = ctx.createLinearGradient(0, HORIZON, 0, H);
+  fg.addColorStop(0, "#0a0820");
+  fg.addColorStop(1, CONFIG.colors.void);
+  ctx.fillStyle = fg;
+  ctx.fillRect(0, HORIZON, W, H - HORIZON);
+}
+
+/* ============================================================
+   Main loop
+   ============================================================ */
+let last = 0, running = true;
+function frame(now) {
+  if (!running) return;
+  const t = now / 1000 * CONFIG.speed;
+  const dt = Math.min(0.05, (now - last) / 1000) || 0.016;
+  last = now;
+
+  ctx.clearRect(0, 0, W, H);
+  drawSky();
+  drawNebula(t);
+  drawStars(t);
+  drawWaves(t);
+  drawSun(t);
+  drawCity(t);
+  drawGrid(t, dt);
+
+  requestAnimationFrame(frame);
+}
+
+// pause when tab/window hidden (saves battery / GPU)
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { running = false; }
+  else { running = true; last = performance.now(); requestAnimationFrame(frame); }
+});
+
+buildWaves();
+resize();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
