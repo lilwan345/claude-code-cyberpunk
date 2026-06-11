@@ -6,12 +6,11 @@
 </p>
 
 <p align="center">
-  <img src="assets/poster.svg" alt="Cyberdeck — animated cyberpunk backdrop behind Claude Code" width="820">
+  <img src="assets/demo.gif" alt="Cyberdeck — animated cyberpunk backdrop behind Claude Code" width="820">
 </p>
 
 <p align="center">
   <b><a href="https://lilwan345.github.io/claude-code-cyberpunk/wallpaper/">▶ See the live animated scene</a></b>
-  &nbsp;·&nbsp; drop a <code>assets/demo.gif</code> here to replace the poster above
 </p>
 
 <p align="center">
