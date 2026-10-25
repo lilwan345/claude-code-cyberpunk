@@ -40,8 +40,8 @@ makes small text fuzzy). The atmosphere comes from the backdrop and the palette.
 
 ## See it before installing anything
 
-The backdrop is adapted from a standalone WebGL/canvas scene I built first as
-the reference (it has the full version — synthwave sun + city skyline):
+The backdrop is adapted from a standalone Canvas 2D scene (no libraries) I built
+first as the reference (it has the full version — synthwave sun + city skyline):
 
 - **Live preview:** https://lilwan345.github.io/claude-code-cyberpunk/wallpaper/
 - Or open [`wallpaper/index.html`](wallpaper/index.html) locally in any browser.
