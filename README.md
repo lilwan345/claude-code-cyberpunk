@@ -28,7 +28,7 @@ layers — use one, two, or all three:
 
 1. **Animated backdrop** — a real 60 fps `<canvas>` scene (drifting nebula,
    flowing neon waves, a perspective grid floor) that lives *behind* a
-   transparent editor and terminal. This is the part that makes people say *woah*.
+   transparent editor and terminal.
 2. **Color layer** — a near-black, high-neon palette for the whole VS Code UI
    plus the integrated terminal, with the chrome (tabs, scrollbars, the terminal
    frame) restyled in cyberpunk neon.
@@ -120,16 +120,16 @@ All the knobs are at the top of the source files — edit, then re-run `./instal
 - `cyberpunk-bg.js` prepends a full-window `<canvas>` (z-index 0) and animates it.
 - `cyberpunk-bg.css` makes the workbench, editor, and terminal backgrounds
   transparent so the canvas shows through, then restyles the chrome.
-- `cyberpunk-glow.css` adds the glassmorphism + status-bar layer.
+- `cyberpunk-glow.css` adds frosted-glass panels and the status-bar styling.
 
 No VS Code extension required — it's a self-contained patch. Every run backs up
 `workbench.html` first (`*.bak-cyberdeck-*`).
 
 ## Credits
 
-Built in the open. Inspired by the synthwave/outrun aesthetic and the long
-lineage of neon VS Code themes (SynthWave '84 and friends) — this one pushes it
-from a static glow to a live animated backdrop, tuned to sit behind Claude Code.
+Inspired by the synthwave look and neon VS Code themes like SynthWave '84.
+The difference here is a live animated backdrop instead of a static glow,
+tuned to sit behind Claude Code.
 
 ## License
 
